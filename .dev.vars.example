@@ -1,0 +1,3 @@
+# Copier en .dev.vars pour `npm run dev` (jamais commité)
+NTFY_TOPIC=mrw-test-remplacez-moi
+RUN_TOKEN=dev

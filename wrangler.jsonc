@@ -1,0 +1,33 @@
+{
+  // Le Worker est créé au premier `wrangler deploy`, puis mis à jour aux suivants.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "model-release-watch",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+
+  // URL publique https://model-release-watch.<sous-domaine>.workers.dev (/health, /run)
+  "workers_dev": true,
+  "preview_urls": false,
+
+  // Toutes les 2 h, minute 17 (UTC). Le site est rafraîchi « toutes les quelques heures ».
+  "triggers": { "crons": ["17 */2 * * *"] },
+
+  // L'ID est injecté par la CI (scripts/ensure-kv.sh) : le namespace est créé s'il n'existe pas.
+  // En local (`wrangler dev`), le KV est simulé : le placeholder suffit.
+  "kv_namespaces": [{ "binding": "STATE", "id": "__KV_NAMESPACE_ID__" }],
+
+  "vars": {
+    // Page dont le HTML embarque <script id="feed-boot"> (30 derniers modèles, avec niveau d'importance)
+    "SOURCE_URL": "https://ai-tldr.dev/releases/model/",
+    // Secours si la page change de format : flux Atom (sans niveau d'importance)
+    "FALLBACK_FEED_URL": "https://ai-tldr.dev/feed.xml",
+    "SITE_BASE": "https://ai-tldr.dev",
+    "NTFY_SERVER": "https://ntfy.sh",
+    "MAX_NOTIFICATIONS_PER_RUN": "10",
+    "STALE_AFTER_HOURS": "72",
+    "FAILURES_BEFORE_ALERT": "3"
+  },
+  // Secrets (poussés par la CI) : NTFY_TOPIC, RUN_TOKEN
+
+  "observability": { "enabled": true }
+}

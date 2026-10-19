@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>AI/TLDR — New AI Releases</title>
+  <id>https://ai-tldr.dev/</id>
+  <updated>2026-10-19T09:37:56.522Z</updated>
+  <entry>
+    <title>Two Minute Papers — 'Gemini 4 Argon Really Surprised Me'</title>
+    <id>https://ai-tldr.dev/releases/two-minute-papers-gemini-4-argon-oct19/</id>
+    <link href="https://ai-tldr.dev/releases/two-minute-papers-gemini-4-argon-oct19/" />
+    <published>2026-10-19T00:00:00.000Z</published>
+    <author><name>Two Minute Papers</name></author>
+    <category term="video" />
+    <summary>Károly Zsolnai-Fehér gives his take on Google's Gemini 4 Argon.</summary>
+  </entry>
+  <entry>
+    <title>DeepSeek V4.1 Flash 1017 — an in-place upgrade with stronger agent scores</title>
+    <id>https://ai-tldr.dev/releases/deepseek-v4-1-flash-1017/</id>
+    <link href="https://ai-tldr.dev/releases/deepseek-v4-1-flash-1017/" />
+    <published>2026-10-17T00:00:00.000Z</published>
+    <author><name>DeepSeek</name></author>
+    <category term="model" />
+    <summary>DeepSeek swaps a better-trained checkpoint into deepseek-flash &amp; keeps the same price.</summary>
+  </entry>
+  <entry>
+    <title>Nemotron 3.5 Super VL — NVIDIA's open 120B vision model for agents</title>
+    <id>https://ai-tldr.dev/releases/nvidia-nemotron-3-5-super-vl/</id>
+    <link href="https://ai-tldr.dev/releases/nvidia-nemotron-3-5-super-vl/" />
+    <published>2026-10-15T00:00:00.000Z</published>
+    <author><name>NVIDIA</name></author>
+    <category term="model" />
+    <summary>NVIDIA's new open model reads text, documents, charts and short videos in one checkpoint.</summary>
+  </entry>
+</feed>

@@ -1,0 +1,22 @@
+{
+  "name": "model-release-watch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker qui notifie (ntfy) chaque nouveau modèle publié sur ai-tldr.dev",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.151.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

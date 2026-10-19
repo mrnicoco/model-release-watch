@@ -1,0 +1,104 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_now:
+        description: "Lancer une vérification réelle après le déploiement (POST /run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+      WORKER_NAME: model-release-watch
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Vérifier les secrets
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RUN_TOKEN: ${{ secrets.RUN_TOKEN }}
+        run: |
+          missing=0
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID NTFY_TOPIC RUN_TOKEN; do
+            if [ -z "${!v}" ]; then echo "::error::Secret $v manquant"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Préparer le compte (sous-domaine + namespace KV, créés si absents)
+        id: cf
+        run: bash scripts/ensure-kv.sh
+
+      - name: Déployer le Worker (créé s'il n'existe pas, mis à jour sinon)
+        run: npx wrangler deploy
+
+      - name: Pousser les secrets du Worker
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RUN_TOKEN: ${{ secrets.RUN_TOKEN }}
+        run: |
+          umask 077
+          f=$(mktemp)
+          trap 'rm -f "$f"' EXIT
+          jq -n --arg t "$NTFY_TOPIC" --arg r "$RUN_TOKEN" '{NTFY_TOPIC:$t, RUN_TOKEN:$r}' > "$f"
+          npx wrangler secret bulk "$f"
+
+      - name: Test de fumée (/health + /run à blanc)
+        env:
+          RUN_TOKEN: ${{ secrets.RUN_TOKEN }}
+          BASE: https://${{ env.WORKER_NAME }}.${{ steps.cf.outputs.workers_subdomain }}.workers.dev
+        run: |
+          # Le premier déploiement sur workers.dev peut mettre quelques secondes à répondre.
+          for _ in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/health" || true)
+            if [ "$code" = "200" ] || [ "$code" = "503" ]; then break; fi
+            echo "Attente de $BASE ($code)…"; sleep 5
+          done
+          echo "/health → $code"
+          [ "$code" = "200" ] || [ "$code" = "503" ] || { echo "::error::Worker injoignable"; exit 1; }
+
+          # Dry run : lit la source et calcule les notifications sans rien envoyer ni écrire.
+          # Les secrets peuvent mettre quelques secondes à être visibles : on réessaie si « misconfigured ».
+          for _ in $(seq 1 6); do
+            res=$(curl -sS -X POST "$BASE/run?dry=1" -H "Authorization: Bearer $RUN_TOKEN")
+            status=$(echo "$res" | jq -r .status)
+            [ "$status" = "misconfigured" ] || [ "$status" = "null" ] || break
+            echo "Secrets pas encore visibles, nouvel essai…"; sleep 5
+          done
+          echo "$res" | jq '{status, newModels, error}'
+          case "$status" in
+            fetch-error|schema-error|misconfigured|null)
+              echo "::error::Le Worker est déployé mais la vérification échoue ($status). Voir l'erreur ci-dessus."; exit 1 ;;
+          esac
+
+      - name: Vérification réelle (seed au premier déploiement)
+        if: steps.cf.outputs.kv_created == 'true' || inputs.run_now
+        env:
+          RUN_TOKEN: ${{ secrets.RUN_TOKEN }}
+          BASE: https://${{ env.WORKER_NAME }}.${{ steps.cf.outputs.workers_subdomain }}.workers.dev
+        run: |
+          curl -sS -X POST "$BASE/run" -H "Authorization: Bearer $RUN_TOKEN" | jq '{status, notified, newModels, alerts}'
